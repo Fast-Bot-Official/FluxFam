@@ -1,0 +1,2151 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>FluxFam — Modern Family & Group Platform</title>
+  
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+
+  <style>
+    :root {
+      --primary: #2563eb;
+      --primary-hover: #1d4ed8;
+      --primary-light: #eff6ff;
+      --bg-main: #f8fafc;
+      --surface: #ffffff;
+      --text-main: #0f172a;
+      --text-muted: #64748b;
+      --border: #e2e8f0;
+      --danger: #ef4444;
+      --success: #10b981;
+      --warning: #f59e0b;
+      --radius: 12px;
+      --shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
+      --transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    body.dark-mode {
+      --bg-main: #0f172a;
+      --surface: #1e293b;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --border: #334155;
+      --primary-light: #1e3a8a;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Inter', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background-color: var(--bg-main);
+      color: var(--text-main);
+    }
+
+    /* Layout Structure */
+    #app-container {
+      width: 100%;
+      height: 100%;
+      display: flex;
+      position: relative;
+    }
+
+    /* Offline Banner */
+    #offline-banner {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      background: var(--danger);
+      color: white;
+      text-align: center;
+      padding: 6px 12px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      z-index: 9999;
+      display: none;
+    }
+
+    /* Toasts */
+    #toast-container {
+      position: fixed;
+      top: 20px; right: 20px;
+      z-index: 10000;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      max-width: 320px;
+      width: calc(100% - 40px);
+      pointer-events: none;
+    }
+
+    .toast {
+      pointer-events: auto;
+      background: var(--surface);
+      color: var(--text-main);
+      padding: 12px 16px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border-left: 4px solid var(--primary);
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: 0.9rem;
+      animation: slideIn 0.3s ease;
+    }
+    .toast.error { border-left-color: var(--danger); }
+    .toast.success { border-left-color: var(--success); }
+    .toast.warning { border-left-color: var(--warning); }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
+
+    /* Screens & Overlays */
+    .screen {
+      position: absolute;
+      top: 0; left: 0; width: 100%; height: 100%;
+      background: var(--bg-main);
+      display: none;
+      flex-direction: column;
+      z-index: 10;
+    }
+    .screen.active { display: flex; }
+
+    /* Auth Screens */
+    .auth-card {
+      max-width: 420px;
+      width: 90%;
+      margin: auto;
+      background: var(--surface);
+      padding: 32px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border);
+    }
+    .auth-title { font-size: 1.75rem; font-weight: 700; margin-bottom: 8px; text-align: center; }
+    .auth-subtitle { color: var(--text-muted); font-size: 0.9rem; margin-bottom: 24px; text-align: center; }
+
+    /* Form Controls */
+    .form-group { margin-bottom: 16px; }
+    .form-label { display: block; font-size: 0.85rem; font-weight: 600; margin-bottom: 6px; }
+    .form-input {
+      width: 100%; padding: 12px 14px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      background: var(--bg-main);
+      color: var(--text-main);
+      font-size: 0.95rem;
+      outline: none;
+      transition: var(--transition);
+    }
+    .form-input:focus { border-color: var(--primary); box-shadow: 0 0 0 3px rgba(37,99,235,0.15); }
+
+    .btn {
+      width: 100%; padding: 12px;
+      border: none; border-radius: var(--radius);
+      font-weight: 600; font-size: 0.95rem;
+      cursor: pointer; transition: var(--transition);
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+    }
+    .btn-primary { background: var(--primary); color: white; }
+    .btn-primary:hover { background: var(--primary-hover); }
+    .btn-secondary { background: var(--border); color: var(--text-main); }
+    .btn-danger { background: var(--danger); color: white; }
+    .btn-outline { border: 1px solid var(--border); background: transparent; color: var(--text-main); }
+    .btn-sm { padding: 6px 12px; font-size: 0.8rem; width: auto; }
+
+    /* Sidebar Drawer */
+    .sidebar-overlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.5); z-index: 100;
+      opacity: 0; pointer-events: none; transition: var(--transition);
+    }
+    .sidebar-overlay.active { opacity: 1; pointer-events: auto; }
+
+    .sidebar {
+      width: 280px; height: 100%;
+      background: var(--surface);
+      border-right: 1px solid var(--border);
+      display: flex; flex-direction: column;
+      position: relative; z-index: 101;
+      transition: transform 0.3s ease;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        position: fixed; top:0; left:0;
+        transform: translateX(-100%);
+      }
+      .sidebar.open { transform: translateX(0); }
+    }
+
+    .sidebar-header {
+      padding: 20px; border-bottom: 1px solid var(--border);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .sidebar-menu { flex: 1; overflow-y: auto; padding: 12px; }
+    .menu-item {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 16px; border-radius: var(--radius);
+      color: var(--text-main); text-decoration: none;
+      font-size: 0.95rem; font-weight: 500;
+      cursor: pointer; margin-bottom: 4px;
+      transition: var(--transition);
+    }
+    .menu-item:hover, .menu-item.active { background: var(--primary-light); color: var(--primary); }
+
+    /* Main Content Dashboard */
+    .dashboard {
+      flex: 1; display: flex; flex-direction: column;
+      height: 100%; position: relative; overflow: hidden;
+    }
+
+    .dash-header {
+      height: 64px; padding: 0 20px;
+      border-bottom: 1px solid var(--border);
+      background: var(--surface);
+      display: flex; align-items: center; justify-content: space-between;
+    }
+
+    .dash-body {
+      flex: 1; display: flex; flex-direction: column; overflow: hidden; position: relative;
+    }
+
+    /* Pinned Messages Bar & Status Row */
+    .pinned-bar {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 8px 16px;
+      display: flex; align-items: center; justify-content: space-between;
+      font-size: 0.85rem;
+    }
+    .pinned-content { display: flex; align-items: center; gap: 8px; cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+    .statuses-bar {
+      display: flex; gap: 12px; padding: 12px 16px;
+      background: var(--surface); border-bottom: 1px solid var(--border);
+      overflow-x: auto; align-items: center;
+    }
+    .status-avatar-wrapper {
+      position: relative; cursor: pointer; display: flex; flex-direction: column; align-items: center; width: 60px;
+    }
+    .status-avatar {
+      width: 48px; height: 48px; border-radius: 50%; object-fit: cover;
+      border: 2px solid var(--primary); padding: 2px;
+    }
+    .status-avatar.viewed { border-color: var(--border); }
+    .status-user-name { font-size: 0.7rem; color: var(--text-muted); text-align: center; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; width: 100%; margin-top: 4px; }
+    .add-status-btn {
+      width: 48px; height: 48px; border-radius: 50%; border: 2px dashed var(--primary);
+      display: flex; align-items: center; justify-content: center; color: var(--primary); font-size: 1.2rem; cursor: pointer;
+    }
+
+    .chat-area {
+      flex: 1; display: flex; flex-direction: column; height: 100%;
+      background: var(--bg-main); overflow: hidden;
+    }
+
+    .messages-container {
+      flex: 1; overflow-y: auto; padding: 20px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+
+    /* Message Bubble & Reactions */
+    .msg-card {
+      display: flex; gap: 12px; max-width: 80%; position: relative; align-self: flex-start;
+    }
+    .msg-card.own { align-self: flex-end; flex-direction: row-reverse; }
+
+    .msg-avatar {
+      width: 36px; height: 36px; border-radius: 50%;
+      object-fit: cover; background: var(--border); flex-shrink: 0;
+    }
+
+    .msg-bubble-wrapper { display: flex; flex-direction: column; max-width: 100%; position: relative; }
+    
+    .msg-content {
+      background: var(--surface); padding: 10px 14px;
+      border-radius: var(--radius); box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      border: 1px solid var(--border); font-size: 0.95rem; position: relative;
+      word-break: break-word;
+    }
+    .msg-card.own .msg-content { background: var(--primary); color: white; border-color: var(--primary); }
+
+    .msg-sender { font-size: 0.75rem; font-weight: 700; color: var(--text-muted); margin-bottom: 4px; display: flex; align-items: center; gap: 4px; }
+    .msg-card.own .msg-sender { color: rgba(255,255,255,0.8); justify-content: flex-end; }
+
+    .msg-footer-info { font-size: 0.65rem; opacity: 0.7; margin-top: 4px; display: flex; gap: 6px; align-items: center; }
+    .msg-card.own .msg-footer-info { justify-content: flex-end; }
+
+    .badge-premium { background: #f59e0b; color: white; font-size: 0.65rem; padding: 2px 6px; border-radius: 10px; text-transform: uppercase; }
+
+    /* Reactions Pill Container */
+    .reactions-bar {
+      display: flex; gap: 4px; flex-wrap: wrap; margin-top: 4px;
+    }
+    .reaction-pill {
+      background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+      padding: 2px 6px; font-size: 0.75rem; display: flex; align-items: center; gap: 4px; cursor: pointer; shadow: var(--shadow);
+    }
+    .msg-card.own .reaction-pill { color: var(--text-main); }
+    .reaction-pill.active { border-color: var(--primary); background: var(--primary-light); }
+
+    /* View Once Card */
+    .view-once-card {
+      display: flex; align-items: center; gap: 10px; padding: 10px 14px;
+      border-radius: var(--radius); background: rgba(0,0,0,0.05); cursor: pointer; border: 1px dashed var(--border);
+    }
+    .msg-card.own .view-once-card { background: rgba(255,255,255,0.2); border-color: rgba(255,255,255,0.4); }
+
+    /* Input Bar Options */
+    .chat-input-bar {
+      padding: 12px 20px; background: var(--surface);
+      border-top: 1px solid var(--border);
+      display: flex; align-items: center; gap: 10px; position: relative;
+    }
+    .view-once-toggle {
+      font-size: 0.8rem; padding: 4px 8px; border-radius: 8px; border: 1px solid var(--border);
+      cursor: pointer; display: flex; align-items: center; gap: 4px; background: var(--bg-main);
+    }
+    .view-once-toggle.active { background: var(--warning); color: white; border-color: var(--warning); }
+
+    /* WebRTC Call View Overlay */
+    .call-overlay {
+      position: absolute; top:0; left:0; width:100%; height:100%;
+      background: #090d16; z-index: 500; display: none;
+      flex-direction: column; justify-content: space-between; padding: 20px;
+    }
+    .call-overlay.active { display: flex; }
+
+    .video-grid {
+      flex: 1; display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+      gap: 16px; align-items: center; justify-content: center; overflow-y: auto;
+    }
+
+    .video-tile {
+      width: 100%; height: 100%; min-height: 200px;
+      background: #1e293b; border-radius: var(--radius);
+      position: relative; overflow: hidden; display: flex;
+      align-items: center; justify-content: center;
+    }
+    .video-tile video { width: 100%; height: 100%; object-fit: cover; }
+    .video-name { position: absolute; bottom: 10px; left: 10px; background: rgba(0,0,0,0.6); color: white; padding: 4px 8px; border-radius: 4px; font-size: 0.8rem; }
+
+    .call-controls {
+      display: flex; justify-content: center; gap: 16px; padding: 16px;
+    }
+    .btn-call { width: 50px; height: 50px; border-radius: 50%; font-size: 1.2rem; }
+
+    /* Incoming Call Banner/Modal */
+    .incoming-call-modal {
+      position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+      background: var(--surface); border: 2px solid var(--primary);
+      padding: 16px 24px; border-radius: var(--radius); box-shadow: var(--shadow);
+      z-index: 2000; display: none; align-items: center; gap: 20px;
+    }
+    .incoming-call-modal.active { display: flex; }
+
+    /* Full-screen Status & View Once Viewer */
+    .media-viewer-overlay {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: rgba(0,0,0,0.9); z-index: 3000; display: none;
+      flex-direction: column; align-items: center; justify-content: center;
+    }
+    .media-viewer-overlay.active { display: flex; }
+    .media-viewer-content { max-width: 90%; max-height: 80vh; border-radius: 8px; }
+
+    /* Modals / Drawers */
+    .modal-overlay {
+      position: fixed; top:0; left:0; width:100%; height:100%;
+      background: rgba(0,0,0,0.6); z-index: 1000;
+      display: none; align-items: center; justify-content: center;
+    }
+    .modal-overlay.active { display: flex; }
+
+    .modal-card {
+      background: var(--surface); width: 90%; max-width: 500px;
+      max-height: 90vh; border-radius: var(--radius);
+      overflow-y: auto; padding: 24px; position: relative;
+      box-shadow: var(--shadow); border: 1px solid var(--border);
+    }
+    .modal-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; }
+    .modal-title { font-size: 1.25rem; font-weight: 700; }
+
+    /* Context Action Popovers */
+    .context-menu {
+      position: fixed; background: var(--surface); border: 1px solid var(--border);
+      border-radius: var(--radius); box-shadow: var(--shadow); padding: 8px; z-index: 2000;
+      display: none; flex-direction: column; gap: 4px; min-width: 160px;
+    }
+    .context-menu.active { display: flex; }
+    .context-item {
+      padding: 8px 12px; font-size: 0.85rem; border-radius: 6px; cursor: pointer; display: flex; align-items: center; gap: 8px; color: var(--text-main);
+    }
+    .context-item:hover { background: var(--primary-light); color: var(--primary); }
+
+    .reaction-picker {
+      display: flex; gap: 8px; padding: 8px; background: var(--surface); border: 1px solid var(--border);
+      border-radius: 20px; box-shadow: var(--shadow); margin-bottom: 6px; justify-content: center;
+    }
+    .reaction-option { font-size: 1.2rem; cursor: pointer; transition: transform 0.1s; }
+    .reaction-option:hover { transform: scale(1.3); }
+
+    /* Empty States */
+    .empty-state {
+      margin: auto; text-align: center; color: var(--text-muted); padding: 40px 20px;
+    }
+    .empty-state i { font-size: 3rem; margin-bottom: 16px; opacity: 0.5; }
+
+    /* Member Role Badge */
+    .role-badge {
+      font-size: 0.65rem; font-weight: 700; padding: 2px 6px; border-radius: 10px; text-transform: uppercase;
+    }
+    .role-creator { background: #8b5cf6; color: white; }
+    .role-admin { background: #2563eb; color: white; }
+    .role-member { background: var(--border); color: var(--text-main); }
+  </style>
+</head>
+<body>
+
+  <div id="offline-banner"><i class="fa-solid fa-wifi"></i> You are currently offline. Reconnecting...</div>
+  <div id="toast-container"></div>
+
+  <!-- Incoming Call Alert -->
+  <div id="incoming-call-modal" class="incoming-call-modal">
+    <div>
+      <div id="incoming-caller-name" style="font-weight: 700;">Caller</div>
+      <div id="incoming-call-type" style="font-size: 0.8rem; color: var(--text-muted);">Incoming Call...</div>
+    </div>
+    <div style="display: flex; gap: 8px;">
+      <button class="btn btn-primary btn-sm" onclick="acceptIncomingCall()"><i class="fa-solid fa-phone"></i> Accept</button>
+      <button class="btn btn-danger btn-sm" onclick="rejectIncomingCall()"><i class="fa-solid fa-phone-slash"></i> Reject</button>
+    </div>
+  </div>
+
+  <div id="app-container">
+
+    <div id="screen-auth" class="screen active">
+      <div class="auth-card">
+        <div id="auth-login-view">
+          <h2 class="auth-title">Welcome Back</h2>
+          <p class="auth-subtitle">Sign in to access your FluxFam spaces</p>
+          <form id="form-login" onsubmit="handleLogin(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="login-email" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="login-password" class="form-input" required>
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-login">Sign In</button>
+          </form>
+          <div style="margin: 16px 0; text-align: center; font-size: 0.85rem; color: var(--text-muted);">OR</div>
+          <button class="btn btn-outline" onclick="handleGoogleSignIn()"><i class="fa-brands fa-google"></i> Continue with Google</button>
+          <p style="margin-top: 20px; text-align: center; font-size: 0.85rem;">
+            New to FluxFam? <a href="#" onclick="toggleAuthView('signup')" style="color:var(--primary); font-weight:600;">Sign up now</a>
+          </p>
+        </div>
+
+        <div id="auth-signup-view" style="display: none;">
+          <h2 class="auth-title">Create Account</h2>
+          <p class="auth-subtitle">Join FluxFam to connect with friends & family</p>
+          <form id="form-signup" onsubmit="handleSignup(event)">
+            <div class="form-group">
+              <label class="form-label">Email</label>
+              <input type="email" id="signup-email" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="password" id="signup-password" class="form-input" required minlength="6">
+            </div>
+            <button type="submit" class="btn btn-primary" id="btn-signup">Create Account</button>
+          </form>
+          <p style="margin-top: 20px; text-align: center; font-size: 0.85rem;">
+            Already have an account? <a href="#" onclick="toggleAuthView('login')" style="color:var(--primary); font-weight:600;">Login instead</a>
+          </p>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-verify" class="screen">
+      <div class="auth-card" style="text-align: center;">
+        <i class="fa-solid fa-envelope-circle-check" style="font-size: 3rem; color: var(--primary); margin-bottom: 16px;"></i>
+        <h2 class="auth-title">Verify Your Email</h2>
+        <p class="auth-subtitle">We sent a verification link to your email address. Please verify to continue.</p>
+        <p style="font-size: 0.8rem; color: var(--text-muted); margin-bottom: 24px;">
+          If you cannot find the email, check your Spam/Junk folder.
+        </p>
+        <button class="btn btn-primary" id="btn-resend-email" onclick="resendVerificationEmail()">Resend Verification Email</button>
+        <button class="btn btn-secondary" style="margin-top: 10px;" onclick="checkVerificationStatus()">I Have Verified</button>
+        <button class="btn btn-outline" style="margin-top: 10px;" onclick="handleLogout()">Logout</button>
+      </div>
+    </div>
+
+    <div id="screen-privacy" class="screen">
+      <div class="auth-card" style="max-width: 600px;">
+        <h2 class="auth-title">Privacy Policy</h2>
+        <div id="privacy-box" style="height: 250px; overflow-y: auto; border: 1px solid var(--border); padding: 16px; border-radius: var(--radius); margin: 16px 0; font-size: 0.85rem; line-height: 1.5;" onscroll="checkPrivacyScroll(this)">
+          <h3>FluxFam Data Privacy Notice</h3>
+          <p>FluxFam respects your privacy. To provide real-time messaging, video calls, and group interaction, we store necessary user data securely in Firebase Realtime Database and Cloudinary.</p>
+          <br>
+          <p><strong>Information Stored:</strong></p>
+          <ul>
+            <li>Profile Details (Display Name, Bio, Avatar URL)</li>
+            <li>Flux ID public identifier</li>
+            <li>Group memberships and direct message records</li>
+            <li>Uploaded media URLs via Cloudinary</li>
+            <li>WebRTC Signaling Metadata for calling</li>
+            <li>Reports and block relationships</li>
+          </ul>
+          <br>
+          <p>Scroll completely to the bottom to acknowledge and accept our terms before continuing.</p>
+          <div style="height: 100px;"></div>
+          <p><strong>Bottom of Privacy Policy Reached.</strong></p>
+        </div>
+        <label style="display: flex; align-items: center; gap: 8px; font-size: 0.85rem; margin-bottom: 20px;">
+          <input type="checkbox" id="chk-privacy" disabled>
+          I agree to the privacy policy and I have read everything stated
+        </label>
+        <button class="btn btn-primary" id="btn-privacy-continue" disabled onclick="acceptPrivacyPolicy()">Continue</button>
+      </div>
+    </div>
+
+    <div id="screen-profile-setup" class="screen">
+      <div class="auth-card">
+        <h2 class="auth-title">Complete Your Profile</h2>
+        <form onsubmit="saveProfileSetup(event)">
+          <div class="form-group">
+            <label class="form-label">Display Name (3-10 chars)</label>
+            <input type="text" id="setup-name" class="form-input" minlength="3" maxlength="10" required>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Bio</label>
+            <textarea id="setup-bio" class="form-input" style="height: 80px;" maxlength="150"></textarea>
+          </div>
+          <div class="form-group">
+            <label class="form-label">Profile Picture (Max 5MB)</label>
+            <input type="file" id="setup-avatar" class="form-input" accept="image/*">
+          </div>
+          <button type="submit" class="btn btn-primary" id="btn-profile-save">Continue to FluxFam</button>
+        </form>
+      </div>
+    </div>
+
+    <div id="screen-dashboard" class="screen">
+      <div class="sidebar-overlay" onclick="closeSidebar()"></div>
+      
+      <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+          <div style="font-weight: 700; font-size: 1.2rem; color: var(--primary);"><i class="fa-solid fa-bolt"></i> FluxFam</div>
+          <i class="fa-solid fa-xmark" style="cursor: pointer;" onclick="closeSidebar()"></i>
+        </div>
+        <div class="sidebar-menu">
+          <div class="menu-item" onclick="openModal('modal-create-group')"><i class="fa-solid fa-plus-circle"></i> Create Group</div>
+          <div class="menu-item" onclick="openModal('modal-add-friend')"><i class="fa-solid fa-user-plus"></i> Add Friend</div>
+          <div class="menu-item" onclick="openModal('modal-group-invites')"><i class="fa-solid fa-envelope-open-text"></i> Group Invites <span id="badge-grp-req-count" style="background:var(--primary); color:white; font-size:0.7rem; padding:2px 6px; border-radius:10px; display:none;">0</span></div>
+          <div class="menu-item" onclick="openModal('modal-requests')"><i class="fa-solid fa-bell"></i> Friend Requests <span id="badge-req-count" style="background:var(--danger); color:white; font-size:0.7rem; padding:2px 6px; border-radius:10px; display:none;">0</span></div>
+          <div class="menu-item" onclick="openModal('modal-friends')"><i class="fa-solid fa-users"></i> Friend List / DMs</div>
+          <div class="menu-item" onclick="openModal('modal-my-profile')"><i class="fa-solid fa-id-card"></i> My Profile</div>
+          <div class="menu-item" onclick="openModal('modal-redeem')"><i class="fa-solid fa-ticket"></i> Redeem Code</div>
+          <div class="menu-item" onclick="openModal('modal-settings')"><i class="fa-solid fa-gear"></i> Settings</div>
+          <a href="https://fast-bot-official.github.io/FluxionarySupport//" target="_blank" class="menu-item" style="text-decoration:none;"><i class="fa-solid fa-headset"></i> Support</a>
+          <div style="border-top:1px solid var(--border); margin: 12px 0;"></div>
+          <div style="font-size: 0.75rem; font-weight:700; color:var(--text-muted); padding: 0 16px 8px;">MY GROUPS</div>
+          <div id="group-list-sidebar"></div>
+        </div>
+      </aside>
+
+      <main class="dashboard">
+        <header class="dash-header">
+          <div style="display: flex; align-items: center; gap: 12px;">
+            <i class="fa-solid fa-bars" style="font-size: 1.2rem; cursor: pointer;" onclick="openSidebar()"></i>
+            <div>
+              <h3 id="current-space-title" style="font-size: 1rem; font-weight: 700;">No Selection</h3>
+              <span id="current-space-subtitle" style="font-size: 0.75rem; color: var(--text-muted);">Select a space or direct message</span>
+            </div>
+          </div>
+          <div id="space-actions" style="display: flex; gap: 8px;">
+            <button class="btn btn-outline" style="width: auto; padding: 8px 12px;" onclick="openCurrentGroupManageModal()" id="btn-manage-group" style="display:none;"><i class="fa-solid fa-users-gear"></i> Manage</button>
+            <button class="btn btn-outline" style="width: auto; padding: 8px 12px;" onclick="startCall('video')"><i class="fa-solid fa-video"></i> Call</button>
+          </div>
+        </header>
+
+        <div class="dash-body">
+          <!-- Statuses Bar (Visible in Group view) -->
+          <div id="group-statuses-bar" class="statuses-bar" style="display: none;">
+            <div class="status-avatar-wrapper" onclick="openAddStatusModal()">
+              <div class="add-status-btn"><i class="fa-solid fa-plus"></i></div>
+              <span class="status-user-name">Add Status</span>
+            </div>
+            <div id="statuses-list-container" style="display: flex; gap: 12px;"></div>
+          </div>
+
+          <!-- Pinned Messages Bar -->
+          <div id="pinned-msg-bar" class="pinned-bar" style="display: none;">
+            <div class="pinned-content" onclick="viewPinnedMessagesModal()">
+              <i class="fa-solid fa-thumbtack" style="color: var(--primary);"></i>
+              <span id="pinned-msg-preview">Pinned message preview...</span>
+            </div>
+            <i class="fa-solid fa-chevron-right" style="cursor: pointer; color: var(--text-muted);" onclick="viewPinnedMessagesModal()"></i>
+          </div>
+
+          <div class="chat-area" id="chat-area">
+            <div id="empty-dash-state" class="empty-state">
+              <i class="fa-solid fa-comments"></i>
+              <h3>No Space Selected</h3>
+              <p>Create or join a group, or select a friend for direct messaging.</p>
+            </div>
+
+            <div id="active-chat-container" style="display: none; flex: 1; flex-direction: column; height: 100%; overflow: hidden;">
+              <div class="messages-container" id="messages-list"></div>
+              
+              <div class="chat-input-bar">
+                <input type="file" id="chat-attachment" style="display:none;" onchange="handleFileSelected(this)">
+                <i class="fa-solid fa-paperclip" style="cursor:pointer; color:var(--text-muted);" onclick="document.getElementById('chat-attachment').click()"></i>
+                
+                <div class="view-once-toggle" id="view-once-toggle" onclick="toggleViewOnceMode()">
+                  <i class="fa-solid fa-eye"></i> 1x
+                </div>
+
+                <input type="text" id="msg-input" class="form-input" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()">
+                <button class="btn btn-primary" style="width: auto; padding: 10px 16px;" onclick="sendMessage()"><i class="fa-solid fa-paper-plane"></i></button>
+              </div>
+            </div>
+          </div>
+        </div>
+      </main>
+
+      <div class="call-overlay" id="call-overlay">
+        <div class="video-grid" id="video-grid"></div>
+        <div class="call-controls">
+          <button class="btn btn-secondary btn-call" id="btn-toggle-mic" onclick="toggleMute()"><i class="fa-solid fa-microphone"></i></button>
+          <button class="btn btn-secondary btn-call" id="btn-toggle-cam" onclick="toggleCamera()"><i class="fa-solid fa-video"></i></button>
+          <button class="btn btn-danger btn-call" onclick="leaveCall()"><i class="fa-solid fa-phone-slash"></i></button>
+        </div>
+      </div>
+    </div>
+
+    <div id="screen-ban" class="screen" style="z-index: 2000;">
+      <div class="auth-card" style="text-align: center;">
+        <i class="fa-solid fa-ban" style="font-size: 3.5rem; color: var(--danger); margin-bottom: 16px;"></i>
+        <h2 class="auth-title">Account Suspended</h2>
+        <p id="ban-reason" style="color: var(--text-muted); margin-bottom: 16px;">Your account has been suspended for violating guidelines.</p>
+        <p id="ban-timer" style="font-weight: 700; color: var(--danger); margin-bottom: 24px;"></p>
+        <a href="https://fast-bot-official.github.io/FluxionarySupport//" target="_blank" class="btn btn-primary">Appeal Suspension</a>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Message Actions Popover Menu -->
+  <div id="message-context-menu" class="context-menu">
+    <div class="reaction-picker">
+      <span class="reaction-option" onclick="addReactionToActiveMsg('👍')">👍</span>
+      <span class="reaction-option" onclick="addReactionToActiveMsg('❤️')">❤️</span>
+      <span class="reaction-option" onclick="addReactionToActiveMsg('😂')">😂</span>
+      <span class="reaction-option" onclick="addReactionToActiveMsg('😮')">😮</span>
+      <span class="reaction-option" onclick="addReactionToActiveMsg('😢')">😢</span>
+      <span class="reaction-option" onclick="addReactionToActiveMsg('😡')">😡</span>
+    </div>
+    <div class="context-item" id="ctx-pin" onclick="pinActiveMessage()"><i class="fa-solid fa-thumbtack"></i> Pin / Unpin</div>
+    <div class="context-item" id="ctx-edit" onclick="startEditActiveMessage()"><i class="fa-solid fa-pen"></i> Edit</div>
+    <div class="context-item" id="ctx-delete" onclick="deleteActiveMessage()" style="color: var(--danger);"><i class="fa-solid fa-trash"></i> Delete</div>
+  </div>
+
+  <!-- Full Screen View Once / Status Viewer -->
+  <div id="media-viewer-overlay" class="media-viewer-overlay" onclick="closeMediaViewer()">
+    <div style="position: absolute; top: 20px; right: 20px; color: white; font-size: 1.5rem; cursor: pointer;"><i class="fa-solid fa-xmark"></i></div>
+    <div id="media-viewer-container" style="display: flex; flex-direction: column; align-items: center; gap: 12px;"></div>
+  </div>
+
+  <!-- Group Preview Modal (For Links/QR) -->
+  <div class="modal-overlay" id="modal-group-preview">
+    <div class="modal-card" style="text-align: center;">
+      <i class="fa-solid fa-users" style="font-size: 3rem; color: var(--primary); margin-bottom: 12px;"></i>
+      <h3 id="preview-group-name" class="modal-title">Group Name</h3>
+      <p id="preview-group-type" style="color: var(--text-muted); font-size: 0.9rem; margin-bottom: 16px;"></p>
+      <p style="font-size: 0.85rem; margin-bottom: 24px;">You have been invited to join this group space.</p>
+      <button class="btn btn-primary" onclick="confirmJoinGroupViaLink()">Join Group</button>
+      <button class="btn btn-outline" style="margin-top: 10px;" onclick="closeModal('modal-group-preview')">Cancel</button>
+    </div>
+  </div>
+
+  <!-- Create Group Modal -->
+  <div class="modal-overlay" id="modal-create-group">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Create Group</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-create-group')"></i>
+      </div>
+      <form onsubmit="handleCreateGroup(event)">
+        <div class="form-group">
+          <label class="form-label">Group Name</label>
+          <input type="text" id="group-name" class="form-input" required maxlength="30">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Group Type</label>
+          <select id="group-type" class="form-input" required>
+            <option value="family">Family Group</option>
+            <option value="friend">Friend Group</option>
+          </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Create</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Group Management & Invitations Modal -->
+  <div class="modal-overlay" id="modal-manage-group">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Group Management</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-manage-group')"></i>
+      </div>
+      
+      <div class="form-group">
+        <label class="form-label">Invite by Flux ID</label>
+        <div style="display: flex; gap: 8px;">
+          <input type="text" id="invite-flux-id" class="form-input" placeholder="12-CHAR FLUX ID" maxlength="12" style="text-transform: uppercase;">
+          <button class="btn btn-primary" style="width: auto; white-space: nowrap;" onclick="sendFluxIdInvite()">Invite</button>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--border); margin: 16px 0; padding-top: 16px;">
+        <label class="form-label">Group Invite Link & QR</label>
+        <div style="display: flex; gap: 8px; margin-bottom: 8px;">
+          <input type="text" id="group-invite-link-input" class="form-input" readonly>
+          <button class="btn btn-outline" style="width: auto;" onclick="copyGroupInviteLink()"><i class="fa-solid fa-copy"></i></button>
+        </div>
+        <div style="display: flex; gap: 8px;">
+          <button class="btn btn-secondary btn-sm" onclick="showGroupQRModal()"><i class="fa-solid fa-qrcode"></i> View QR Code</button>
+          <button class="btn btn-danger btn-sm" id="btn-revoke-link" onclick="revokeGroupInviteLink()"><i class="fa-solid fa-rotate-left"></i> Revoke & Generate New</button>
+        </div>
+      </div>
+
+      <div style="border-top: 1px solid var(--border); margin: 16px 0; padding-top: 16px;">
+        <label class="form-label">Members & Roles</label>
+        <div id="group-members-list-container" style="display: flex; flex-direction: column; gap: 8px; max-height: 200px; overflow-y: auto;"></div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QR Code Modal -->
+  <div class="modal-overlay" id="modal-qr-code">
+    <div class="modal-card" style="text-align: center;">
+      <div class="modal-header">
+        <h3 class="modal-title">Group QR Code</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-qr-code')"></i>
+      </div>
+      <div id="qr-code-display" style="display: flex; justify-content: center; margin: 20px 0;"></div>
+      <p style="font-size: 0.85rem; color: var(--text-muted); margin-bottom: 16px;">Scan this QR code to join space</p>
+      <button class="btn btn-primary" onclick="copyGroupInviteLink()">Copy Link</button>
+    </div>
+  </div>
+
+  <!-- Group Invites List Modal -->
+  <div class="modal-overlay" id="modal-group-invites">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Pending Group Invites</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-group-invites')"></i>
+      </div>
+      <div id="group-invites-list-container"></div>
+    </div>
+  </div>
+
+  <!-- Add Status Modal -->
+  <div class="modal-overlay" id="modal-add-status">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Group Status</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-add-status')"></i>
+      </div>
+      <form onsubmit="handlePostStatus(event)">
+        <div class="form-group">
+          <label class="form-label">Caption / Text</label>
+          <input type="text" id="status-text-input" class="form-input" placeholder="What's happening?">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Optional Media (Image / Short Video)</label>
+          <input type="file" id="status-media-file" class="form-input" accept="image/*,video/*">
+        </div>
+        <button type="submit" class="btn btn-primary">Post Status (24h)</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Pinned Messages Modal -->
+  <div class="modal-overlay" id="modal-pinned-messages">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Pinned Messages</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-pinned-messages')"></i>
+      </div>
+      <div id="pinned-messages-list" style="display: flex; flex-direction: column; gap: 10px;"></div>
+    </div>
+  </div>
+
+  <!-- Add Friend Modal -->
+  <div class="modal-overlay" id="modal-add-friend">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Add Friend</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-add-friend')"></i>
+      </div>
+      <form onsubmit="handleAddFriend(event)">
+        <div class="form-group">
+          <label class="form-label">12-Character Flux ID</label>
+          <input type="text" id="target-flux-id" class="form-input" required maxlength="12" style="text-transform:uppercase;">
+        </div>
+        <button type="submit" class="btn btn-primary">Send Request</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Friend Requests Modal -->
+  <div class="modal-overlay" id="modal-requests">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Friend Requests</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-requests')"></i>
+      </div>
+      <div id="requests-list-container"></div>
+    </div>
+  </div>
+
+  <!-- Friends List / DMs Modal -->
+  <div class="modal-overlay" id="modal-friends">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Friend List & DMs</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-friends')"></i>
+      </div>
+      <div id="friends-list-container"></div>
+    </div>
+  </div>
+
+  <!-- My Profile Modal -->
+  <div class="modal-overlay" id="modal-my-profile">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">My Profile</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-my-profile')"></i>
+      </div>
+      <div style="text-align: center; margin-bottom: 20px;">
+        <img id="my-profile-img" src="" style="width: 80px; height: 80px; border-radius: 50%; object-fit: cover; background: var(--border);">
+        <h3 id="my-profile-name" style="margin-top: 8px;"></h3>
+        <span id="my-profile-badge" class="badge-premium" style="display:none;">PREMIUM</span>
+        <p style="font-size: 0.85rem; color: var(--text-muted); margin-top: 4px;">Flux ID: <strong id="my-profile-fluxid"></strong> <i class="fa-solid fa-copy" style="cursor:pointer;" onclick="copyFluxID()"></i></p>
+      </div>
+      <form onsubmit="handleUpdateProfile(event)">
+        <div class="form-group">
+          <label class="form-label">Display Name</label>
+          <input type="text" id="edit-name" class="form-input" minlength="3" maxlength="10" required>
+        </div>
+        <div class="form-group">
+          <label class="form-label">Bio</label>
+          <textarea id="edit-bio" class="form-input" style="height:70px;"></textarea>
+        </div>
+        <button type="submit" class="btn btn-primary">Save Details</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Redeem Modal -->
+  <div class="modal-overlay" id="modal-redeem">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Redeem Code</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-redeem')"></i>
+      </div>
+      <form onsubmit="handleRedeemCode(event)">
+        <div class="form-group">
+          <label class="form-label">Enter Code</label>
+          <input type="text" id="redeem-code-input" class="form-input" required style="text-transform:uppercase;">
+        </div>
+        <button type="submit" class="btn btn-primary">Redeem Premium</button>
+      </form>
+    </div>
+  </div>
+
+  <!-- Settings Modal -->
+  <div class="modal-overlay" id="modal-settings">
+    <div class="modal-card">
+      <div class="modal-header">
+        <h3 class="modal-title">Settings</h3>
+        <i class="fa-solid fa-xmark" style="cursor:pointer;" onclick="closeModal('modal-settings')"></i>
+      </div>
+      <div class="form-group" style="display:flex; justify-content:space-between; align-items:center;">
+        <label class="form-label" style="margin:0;">Dark Mode</label>
+        <input type="checkbox" id="set-darkmode" onchange="toggleDarkMode(this.checked)">
+      </div>
+      <div class="form-group" style="display:flex; justify-content:space-between; align-items:center; margin-top:16px;">
+        <label class="form-label" style="margin:0;">Technical Language</label>
+        <input type="checkbox" id="set-techlang" onchange="toggleTechLang(this.checked)">
+      </div>
+    </div>
+  </div>
+
+  <script>
+    /* --- CONFIGURATION --- */
+    const firebaseConfig = {
+      apiKey: "AIzaSyApoimyCR-Ey9LzywugzzAyA-KGTX20dog",
+      authDomain: "fluxfamofficial.firebaseapp.com",
+      databaseURL: "https://fluxfamofficial-default-rtdb.asia-southeast1.firebasedatabase.app",
+      projectId: "fluxfamofficial",
+      storageBucket: "fluxfamofficial.firebasestorage.app",
+      messagingSenderId: "790084647246",
+      appId: "1:790084647246:web:5b7d47c3d167fac919861f"
+    };
+
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.database();
+
+    const CLOUDINARY_CLOUD = "dgdaqwfib";
+    const CLOUDINARY_PRESET = "ml_default";
+
+    /* --- GLOBAL STATE & LISTENERS CLEANUP --- */
+    let currentUser = null;
+    let currentUserProfile = null;
+    let currentSpace = null; // { type: 'group' | 'dm', id, name, typeName, targetUid }
+    let isViewOnceNext = false;
+    let activeCallStream = null;
+    let peerConnections = {};
+    let isTechnicalLanguage = localStorage.getItem('fluxfam_tech_lang') === 'true';
+    let currentTheme = localStorage.getItem('fluxfam_theme') || 'light';
+    
+    // Active WebRTC Call State
+    let activeCallId = null;
+    let activeCallRole = null; // 'caller' | 'recipient'
+    let activeCallPeerUid = null;
+
+    // Active Context Menu Message Reference
+    let activeContextMsg = null;
+
+    // Listeners state tracking for cleanup
+    let activeListeners = [];
+
+    // Apply cached theme early
+    if (currentTheme === 'dark') document.body.classList.add('dark-mode');
+
+    /* --- TOAST SYSTEM --- */
+    function showToast(msg, type = "info") {
+      const container = document.getElementById('toast-container');
+      const toast = document.createElement('div');
+      toast.className = `toast ${type}`;
+      toast.innerHTML = `<i class="fa-solid fa-circle-info"></i> <span>${sanitize(msg)}</span>`;
+      container.appendChild(toast);
+      setTimeout(() => toast.remove(), 4000);
+    }
+
+    /* --- UTILS --- */
+    function sanitize(str) {
+      if (!str) return '';
+      return String(str).replace(/[&<>"']/g, m => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' })[m]);
+    }
+
+    function generateFluxIDCandidate() {
+      const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789';
+      let result = '';
+      const bytes = new Uint8Array(12);
+      crypto.getRandomValues(bytes);
+      for (let i = 0; i < 12; i++) {
+        result += chars[bytes[i] % chars.length];
+      }
+      return result;
+    }
+
+    function clearActiveListeners() {
+      activeListeners.forEach(l => l.ref.off(l.event, l.fn));
+      activeListeners = [];
+    }
+
+    /* --- AUTH STATE MACHINE --- */
+    auth.onAuthStateChanged(async (user) => {
+      if (!user) {
+        clearActiveListeners();
+        switchScreen('screen-auth');
+        currentUser = null;
+        return;
+      }
+      currentUser = user;
+
+      // Ban Check
+      const banSnap = await db.ref(`bans/${user.uid}`).once('value');
+      if (banSnap.exists() && banSnap.val().active) {
+        document.getElementById('ban-reason').innerText = banSnap.val().reason || 'Suspended for policy violations.';
+        switchScreen('screen-ban');
+        return;
+      }
+
+      // Verification check (email/pass)
+      if (!user.emailVerified && user.providerData[0]?.providerId === 'password') {
+        switchScreen('screen-verify');
+        return;
+      }
+
+      // Check User Profile Data
+      const userSnap = await db.ref(`users/${user.uid}`).once('value');
+      if (!userSnap.exists()) {
+        switchScreen('screen-privacy');
+        return;
+      }
+
+      currentUserProfile = userSnap.val();
+      if (!currentUserProfile.privacyAccepted) {
+        switchScreen('screen-privacy');
+        return;
+      }
+
+      if (!currentUserProfile.onboardingComplete) {
+        switchScreen('screen-profile-setup');
+        return;
+      }
+
+      // Load & Sync Preferences
+      syncUserPreferences();
+
+      // Check for deep link / invitation tokens in URL
+      checkUrlInviteToken();
+
+      // Fully Authenticated Dashboard
+      switchScreen('screen-dashboard');
+      initUserApp();
+    });
+
+    function switchScreen(id) {
+      document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+      document.getElementById(id).classList.add('active');
+    }
+
+    function toggleAuthView(view) {
+      document.getElementById('auth-login-view').style.display = view === 'login' ? 'block' : 'none';
+      document.getElementById('auth-signup-view').style.display = view === 'signup' ? 'block' : 'none';
+    }
+
+    /* --- AUTH HANDLERS --- */
+    async function handleLogin(e) {
+      e.preventDefault();
+      try {
+        await auth.signInWithEmailAndPassword(
+          document.getElementById('login-email').value,
+          document.getElementById('login-password').value
+        );
+      } catch (err) {
+        showToast(isTechnicalLanguage ? `Auth Error: ${err.message}` : "Invalid email or password.", "error");
+      }
+    }
+
+    async function handleSignup(e) {
+      e.preventDefault();
+      try {
+        const cred = await auth.createUserWithEmailAndPassword(
+          document.getElementById('signup-email').value,
+          document.getElementById('signup-password').value
+        );
+        await cred.user.sendEmailVerification();
+        showToast("Verification email sent!");
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    async function handleGoogleSignIn() {
+      const provider = new firebase.auth.GoogleAuthProvider();
+      try {
+        await auth.signInWithPopup(provider);
+      } catch (err) {
+        showToast(err.message, "error");
+      }
+    }
+
+    function handleLogout() {
+      clearActiveListeners();
+      auth.signOut();
+    }
+
+    /* --- PRIVACY & PROFILE SETUP --- */
+    function checkPrivacyScroll(box) {
+      if (box.scrollHeight - box.scrollTop <= box.clientHeight + 10) {
+        document.getElementById('chk-privacy').disabled = false;
+      }
+    }
+    document.getElementById('chk-privacy').addEventListener('change', (e) => {
+      document.getElementById('btn-privacy-continue').disabled = !e.target.checked;
+    });
+
+    async function acceptPrivacyPolicy() {
+      switchScreen('screen-profile-setup');
+    }
+
+    async function saveProfileSetup(e) {
+      e.preventDefault();
+      const name = document.getElementById('setup-name').value.trim();
+      const bio = document.getElementById('setup-bio').value.trim();
+      const file = document.getElementById('setup-avatar').files[0];
+
+      let photoURL = '';
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) {
+          showToast("Image size must be under 5MB for free tier.", "warning");
+          return;
+        }
+        photoURL = await uploadToCloudinary(file);
+      }
+
+      // Unique Flux ID Generation Transaction
+      let fluxId = '';
+      let generated = false;
+
+      while (!generated) {
+        const candidate = generateFluxIDCandidate();
+        const res = await db.ref(`fluxIds/${candidate}`).transaction((current) => {
+          if (current === null) return currentUser.uid;
+          return;
+        });
+        if (res.committed) {
+          fluxId = candidate;
+          generated = true;
+        }
+      }
+
+      const userProfile = {
+        fluxId,
+        email: currentUser.email,
+        displayName: name,
+        bio: bio,
+        photoURL: photoURL,
+        privacyAccepted: true,
+        privacyVersion: 1,
+        onboardingComplete: true,
+        preferences: { theme: currentTheme, technicalLanguage: isTechnicalLanguage },
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      };
+
+      await db.ref(`users/${currentUser.uid}`).set(userProfile);
+      currentUserProfile = userProfile;
+      switchScreen('screen-dashboard');
+      initUserApp();
+    }
+
+    /* --- PREFERENCES & SETTINGS SYNCHRONIZATION --- */
+    async function syncUserPreferences() {
+      const prefRef = db.ref(`users/${currentUser.uid}/preferences`);
+      const snap = await prefRef.once('value');
+      if (snap.exists()) {
+        const prefs = snap.val();
+        currentTheme = prefs.theme || currentTheme;
+        isTechnicalLanguage = prefs.technicalLanguage ?? isTechnicalLanguage;
+      } else {
+        await prefRef.set({ theme: currentTheme, technicalLanguage: isTechnicalLanguage });
+      }
+
+      localStorage.setItem('fluxfam_theme', currentTheme);
+      localStorage.setItem('fluxfam_tech_lang', isTechnicalLanguage);
+
+      document.body.classList.toggle('dark-mode', currentTheme === 'dark');
+      document.getElementById('set-darkmode').checked = currentTheme === 'dark';
+      document.getElementById('set-techlang').checked = isTechnicalLanguage;
+    }
+
+    function toggleDarkMode(enabled) {
+      currentTheme = enabled ? 'dark' : 'light';
+      document.body.classList.toggle('dark-mode', enabled);
+      localStorage.setItem('fluxfam_theme', currentTheme);
+      if (currentUser) db.ref(`users/${currentUser.uid}/preferences/theme`).set(currentTheme);
+    }
+
+    function toggleTechLang(enabled) {
+      isTechnicalLanguage = enabled;
+      localStorage.setItem('fluxfam_tech_lang', enabled);
+      if (currentUser) db.ref(`users/${currentUser.uid}/preferences/technicalLanguage`).set(enabled);
+    }
+
+    /* --- CLOUDINARY UPLOAD HELPER --- */
+    async function uploadToCloudinary(file) {
+      const formData = new FormData();
+      formData.append('file', file);
+      formData.append('upload_preset', CLOUDINARY_PRESET);
+
+      try {
+        const res = await fetch(`https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD}/auto/upload`, {
+          method: 'POST',
+          body: formData
+        });
+        const data = await res.json();
+        return data.secure_url;
+      } catch (err) {
+        showToast("Upload failed. Check network connection.", "error");
+        throw err;
+      }
+    }
+
+    /* --- DASHBOARD & INITIALIZATION --- */
+    function openSidebar() {
+      document.getElementById('sidebar').classList.add('open');
+      document.querySelector('.sidebar-overlay').classList.add('active');
+    }
+    function closeSidebar() {
+      document.getElementById('sidebar').classList.remove('open');
+      document.querySelector('.sidebar-overlay').classList.remove('active');
+    }
+
+    function openModal(id) { document.getElementById(id).classList.add('active'); closeSidebar(); }
+    function closeModal(id) { document.getElementById(id).classList.remove('active'); }
+
+    function initUserApp() {
+      loadSidebarGroups();
+      loadFriendRequests();
+      loadGroupInvitations();
+      listenForIncomingCalls();
+      
+      // Setup My Profile UI
+      document.getElementById('my-profile-name').innerText = currentUserProfile.displayName;
+      document.getElementById('my-profile-fluxid').innerText = currentUserProfile.fluxId;
+      document.getElementById('my-profile-img').src = currentUserProfile.photoURL || 'https://via.placeholder.com/80';
+      document.getElementById('edit-name').value = currentUserProfile.displayName;
+      document.getElementById('edit-bio').value = currentUserProfile.bio || '';
+    }
+
+    function copyFluxID() {
+      navigator.clipboard.writeText(currentUserProfile.fluxId);
+      showToast("Flux ID copied to clipboard!", "success");
+    }
+
+    /* --- GROUP CREATION & MANAGEMENT --- */
+    async function handleCreateGroup(e) {
+      e.preventDefault();
+      const name = document.getElementById('group-name').value.trim();
+      const type = document.getElementById('group-type').value;
+
+      const groupRef = db.ref('groups').push();
+      const groupId = groupRef.key;
+
+      const groupData = {
+        name,
+        type,
+        creatorUid: currentUser.uid,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        memberCount: 1,
+        members: {
+          [currentUser.uid]: { role: 'creator', joinedAt: firebase.database.ServerValue.TIMESTAMP }
+        }
+      };
+
+      await groupRef.set(groupData);
+      closeModal('modal-create-group');
+      showToast("Group created successfully!", "success");
+      selectSpace({ type: 'group', id: groupId, name: name, typeName: type });
+    }
+
+    function loadSidebarGroups() {
+      const ref = db.ref('groups');
+      const fn = ref.on('value', (snap) => {
+        const container = document.getElementById('group-list-sidebar');
+        container.innerHTML = '';
+        if (!snap.exists()) return;
+
+        snap.forEach((child) => {
+          const g = child.val();
+          if (g.members && g.members[currentUser.uid]) {
+            const item = document.createElement('div');
+            item.className = 'menu-item';
+            item.innerHTML = `<i class="fa-solid ${g.type === 'family' ? 'fa-house-chimney' : 'fa-users'}"></i> ${sanitize(g.name)}`;
+            item.onclick = () => selectSpace({ type: 'group', id: child.key, name: g.name, typeName: g.type });
+            container.appendChild(item);
+          }
+        });
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    /* --- SELECTING SPACE (GROUPS / DMS) --- */
+    function selectSpace(space) {
+      currentSpace = space;
+      document.getElementById('current-space-title').innerText = space.name;
+      document.getElementById('current-space-subtitle').innerText = space.type === 'group' ? `${space.typeName.toUpperCase()} GROUP` : 'DIRECT MESSAGE';
+      document.getElementById('empty-dash-state').style.display = 'none';
+      document.getElementById('active-chat-container').style.display = 'flex';
+      
+      const btnManage = document.getElementById('btn-manage-group');
+      if (space.type === 'group') {
+        btnManage.style.display = 'inline-flex';
+        document.getElementById('group-statuses-bar').style.display = 'flex';
+        loadGroupStatuses(space.id);
+        loadPinnedMessageBar(space.id);
+      } else {
+        btnManage.style.display = 'none';
+        document.getElementById('group-statuses-bar').style.display = 'none';
+        document.getElementById('pinned-msg-bar').style.display = 'none';
+      }
+
+      loadMessages();
+      closeSidebar();
+    }
+
+    /* --- GROUP INVITATIONS (FLUX ID / LINK / QR) --- */
+    async function openCurrentGroupManageModal() {
+      if (!currentSpace || currentSpace.type !== 'group') return;
+      const groupId = currentSpace.id;
+
+      // Check role permissions
+      const memberSnap = await db.ref(`groups/${groupId}/members/${currentUser.uid}`).once('value');
+      const userRole = memberSnap.val()?.role || 'member';
+
+      // Load link token or create
+      let tokenSnap = await db.ref(`groups/${groupId}/inviteToken`).once('value');
+      let token = tokenSnap.val();
+      if (!token) {
+        token = db.ref().push().key;
+        await db.ref(`groups/${groupId}/inviteToken`).set(token);
+        await db.ref(`inviteTokens/${token}`).set({ groupId, creatorUid: currentUser.uid, createdAt: firebase.database.ServerValue.TIMESTAMP });
+      }
+
+      const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${token}`;
+      document.getElementById('group-invite-link-input').value = inviteUrl;
+
+      // Render members
+      loadGroupMembersList(groupId, userRole);
+      openModal('modal-manage-group');
+    }
+
+    async function sendFluxIdInvite() {
+      const fluxId = document.getElementById('invite-flux-id').value.trim().toUpperCase();
+      if (!fluxId || fluxId.length !== 12) {
+        showToast("Enter a valid 12-character Flux ID.", "warning");
+        return;
+      }
+
+      const snap = await db.ref(`fluxIds/${fluxId}`).once('value');
+      if (!snap.exists()) {
+        showToast("User with this Flux ID does not exist.", "error");
+        return;
+      }
+
+      const targetUid = snap.val();
+      if (targetUid === currentUser.uid) {
+        showToast("You cannot invite yourself.", "warning");
+        return;
+      }
+
+      const memSnap = await db.ref(`groups/${currentSpace.id}/members/${targetUid}`).once('value');
+      if (memSnap.exists()) {
+        showToast("User is already a group member.", "info");
+        return;
+      }
+
+      // Push invite
+      const inviteRef = db.ref(`groupInvitations/${targetUid}`).push();
+      await inviteRef.set({
+        groupId: currentSpace.id,
+        groupName: currentSpace.name,
+        groupType: currentSpace.typeName,
+        inviterName: currentUserProfile.displayName,
+        inviterFluxId: currentUserProfile.fluxId,
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      document.getElementById('invite-flux-id').value = '';
+      showToast("Group invitation sent!", "success");
+    }
+
+    function copyGroupInviteLink() {
+      const link = document.getElementById('group-invite-link-input').value;
+      navigator.clipboard.writeText(link);
+      showToast("Invite link copied!", "success");
+    }
+
+    async function revokeGroupInviteLink() {
+      if (!currentSpace || currentSpace.type !== 'group') return;
+      const groupId = currentSpace.id;
+
+      let tokenSnap = await db.ref(`groups/${groupId}/inviteToken`).once('value');
+      if (tokenSnap.exists()) {
+        await db.ref(`inviteTokens/${tokenSnap.val()}`).remove();
+      }
+
+      const newToken = db.ref().push().key;
+      await db.ref(`groups/${groupId}/inviteToken`).set(newToken);
+      await db.ref(`inviteTokens/${newToken}`).set({ groupId, creatorUid: currentUser.uid, createdAt: firebase.database.ServerValue.TIMESTAMP });
+
+      const inviteUrl = `${window.location.origin}${window.location.pathname}?invite=${newToken}`;
+      document.getElementById('group-invite-link-input').value = inviteUrl;
+      showToast("Previous link revoked. New link generated!", "success");
+    }
+
+    function showGroupQRModal() {
+      const link = document.getElementById('group-invite-link-input').value;
+      const qrContainer = document.getElementById('qr-code-display');
+      qrContainer.innerHTML = '';
+      new QRCode(qrContainer, { text: link, width: 180, height: 180 });
+      openModal('modal-qr-code');
+    }
+
+    function loadGroupInvitations() {
+      const ref = db.ref(`groupInvitations/${currentUser.uid}`);
+      const fn = ref.on('value', (snap) => {
+        const badge = document.getElementById('badge-grp-req-count');
+        const container = document.getElementById('group-invites-list-container');
+        container.innerHTML = '';
+
+        if (!snap.exists()) {
+          badge.style.display = 'none';
+          container.innerHTML = '<div class="empty-state">No pending invites</div>';
+          return;
+        }
+
+        const count = snap.numChildren();
+        badge.innerText = count;
+        badge.style.display = 'inline-block';
+
+        snap.forEach((child) => {
+          const inv = child.val();
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px; padding:8px; border:1px solid var(--border); border-radius:8px;';
+          div.innerHTML = `
+            <div>
+              <strong>${sanitize(inv.groupName)}</strong> (${sanitize(inv.groupType)})<br>
+              <small style="color:var(--text-muted)">From: ${sanitize(inv.inviterName)}</small>
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-primary btn-sm" onclick="acceptGroupInvite('${child.key}', '${inv.groupId}')">Join</button>
+              <button class="btn btn-secondary btn-sm" onclick="declineGroupInvite('${child.key}')">Decline</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    async function acceptGroupInvite(inviteId, groupId) {
+      await db.ref(`groups/${groupId}/members/${currentUser.uid}`).set({
+        role: 'member',
+        joinedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      await db.ref(`groups/${groupId}/memberCount`).transaction(c => (c || 0) + 1);
+      await db.ref(`groupInvitations/${currentUser.uid}/${inviteId}`).remove();
+      showToast("Joined group!", "success");
+      closeModal('modal-group-invites');
+    }
+
+    async function declineGroupInvite(inviteId) {
+      await db.ref(`groupInvitations/${currentUser.uid}/${inviteId}`).remove();
+    }
+
+    /* URL Deep Link Invite Check */
+    async function checkUrlInviteToken() {
+      const params = new URLSearchParams(window.location.search);
+      const token = params.get('invite');
+      if (!token) return;
+
+      const snap = await db.ref(`inviteTokens/${token}`).once('value');
+      if (!snap.exists()) {
+        showToast("Invalid or expired group invite link.", "error");
+        return;
+      }
+
+      const { groupId } = snap.val();
+      const groupSnap = await db.ref(`groups/${groupId}`).once('value');
+      if (!groupSnap.exists()) {
+        showToast("Group no longer exists.", "error");
+        return;
+      }
+
+      const group = groupSnap.val();
+      document.getElementById('preview-group-name').innerText = group.name;
+      document.getElementById('preview-group-type').innerText = `${group.type.toUpperCase()} GROUP • ${group.memberCount || 1} members`;
+      window.pendingJoinGroupId = groupId;
+      openModal('modal-group-preview');
+    }
+
+    async function confirmJoinGroupViaLink() {
+      const groupId = window.pendingJoinGroupId;
+      if (!groupId) return;
+
+      await db.ref(`groups/${groupId}/members/${currentUser.uid}`).set({
+        role: 'member',
+        joinedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      await db.ref(`groups/${groupId}/memberCount`).transaction(c => (c || 0) + 1);
+      
+      closeModal('modal-group-preview');
+      showToast("Successfully joined group!", "success");
+      selectSpace({ type: 'group', id: groupId, name: 'Group', typeName: 'group' });
+    }
+
+    /* --- GROUP MEMBERS & ROLE MANAGEMENT --- */
+    async function loadGroupMembersList(groupId, currentUserRole) {
+      const container = document.getElementById('group-members-list-container');
+      container.innerHTML = '';
+
+      const snap = await db.ref(`groups/${groupId}/members`).once('value');
+      if (!snap.exists()) return;
+
+      const members = snap.val();
+      for (const uid in members) {
+        const memRole = members[uid].role;
+        const uSnap = await db.ref(`users/${uid}`).once('value');
+        const user = uSnap.val() || { displayName: 'User', fluxId: '' };
+
+        const item = document.createElement('div');
+        item.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:6px 0; border-bottom:1px solid var(--border);';
+        
+        let actionButtons = '';
+        if (currentUserRole === 'creator' && uid !== currentUser.uid) {
+          actionButtons = `
+            ${memRole === 'member' ? `<button class="btn btn-outline btn-sm" onclick="changeMemberRole('${groupId}', '${uid}', 'admin')">Promote</button>` : ''}
+            ${memRole === 'admin' ? `<button class="btn btn-outline btn-sm" onclick="changeMemberRole('${groupId}', '${uid}', 'member')">Demote</button>` : ''}
+            <button class="btn btn-danger btn-sm" onclick="removeGroupMember('${groupId}', '${uid}')">Remove</button>
+          `;
+        } else if (currentUserRole === 'admin' && memRole === 'member' && uid !== currentUser.uid) {
+          actionButtons = `<button class="btn btn-danger btn-sm" onclick="removeGroupMember('${groupId}', '${uid}')">Remove</button>`;
+        }
+
+        item.innerHTML = `
+          <div style="display:flex; align-items:center; gap:8px;">
+            <strong>${sanitize(user.displayName)}</strong>
+            <span class="role-badge role-${memRole}">${memRole}</span>
+          </div>
+          <div style="display:flex; gap:4px;">${actionButtons}</div>
+        `;
+        container.appendChild(item);
+      }
+    }
+
+    async function changeMemberRole(groupId, targetUid, newRole) {
+      await db.ref(`groups/${groupId}/members/${targetUid}/role`).set(newRole);
+      showToast("Role updated!", "success");
+      openCurrentGroupManageModal();
+    }
+
+    async function removeGroupMember(groupId, targetUid) {
+      if (!confirm("Are you sure you want to remove this member?")) return;
+      await db.ref(`groups/${groupId}/members/${targetUid}`).remove();
+      await db.ref(`groups/${groupId}/memberCount`).transaction(c => Math.max(0, (c || 1) - 1));
+      showToast("Member removed.", "success");
+      openCurrentGroupManageModal();
+    }
+
+    /* --- REALTIME MESSAGING (GROUPS & DMS) --- */
+    function loadMessages() {
+      const list = document.getElementById('messages-list');
+      list.innerHTML = '';
+
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages`;
+
+      const ref = db.ref(path).limitToLast(50);
+      const fn = ref.on('value', (snap) => {
+        list.innerHTML = '';
+        if (!snap.exists()) return;
+
+        snap.forEach((child) => {
+          const m = child.val();
+          const msgId = child.key;
+          const isOwn = m.senderUid === currentUser.uid;
+
+          const div = document.createElement('div');
+          div.className = `msg-card ${isOwn ? 'own' : ''}`;
+          div.id = `msg-${msgId}`;
+          
+          let contentHtml = '';
+          if (m.isDeleted) {
+            contentHtml = `<i style="opacity:0.7;"><i class="fa-solid fa-ban"></i> This message was deleted.</i>`;
+          } else if (m.isViewOnce) {
+            const hasViewed = m.viewedBy && m.viewedBy[currentUser.uid];
+            if (hasViewed) {
+              contentHtml = `<div class="view-once-card"><i class="fa-solid fa-eye-slash"></i> <span>Opened View Once Media</span></div>`;
+            } else {
+              contentHtml = `<div class="view-once-card" onclick="openViewOnceMedia('${msgId}', '${m.mediaUrl}', '${m.mediaType || 'image'}')"><i class="fa-solid fa-eye"></i> <span>View Once Media (Tap to open)</span></div>`;
+            }
+          } else {
+            contentHtml = `<div>${sanitize(m.text)}</div>`;
+            if (m.mediaUrl) {
+              if (m.mediaType === 'video') {
+                contentHtml += `<video src="${m.mediaUrl}" controls style="max-width:220px; border-radius:8px; margin-top:8px;"></video>`;
+              } else {
+                contentHtml += `<img src="${m.mediaUrl}" style="max-width:220px; border-radius:8px; margin-top:8px;" onclick="openMediaViewer('${m.mediaUrl}')">`;
+              }
+            }
+          }
+
+          // Reactions HTML
+          let reactionsHtml = '';
+          if (m.reactions) {
+            const counts = {};
+            for (const uid in m.reactions) {
+              const emoji = m.reactions[uid];
+              counts[emoji] = (counts[emoji] || 0) + 1;
+            }
+            reactionsHtml = '<div class="reactions-bar">';
+            for (const emoji in counts) {
+              const activeClass = m.reactions[currentUser.uid] === emoji ? 'active' : '';
+              reactionsHtml += `<span class="reaction-pill ${activeClass}">${emoji} ${counts[emoji]}</span>`;
+            }
+            reactionsHtml += '</div>';
+          }
+
+          div.innerHTML = `
+            <img class="msg-avatar" src="${m.senderPhoto || 'https://via.placeholder.com/36'}">
+            <div class="msg-bubble-wrapper">
+              <div class="msg-content" oncontextmenu="openMsgContextMenu(event, '${msgId}', '${m.senderUid}', ${!!m.isPinned}); return false;" onclick="openMsgContextMenu(event, '${msgId}', '${m.senderUid}', ${!!m.isPinned})">
+                <div class="msg-sender">${sanitize(m.senderName)} ${m.isPremium ? '<span class="badge-premium">PRO</span>' : ''}</div>
+                ${contentHtml}
+                <div class="msg-footer-info">
+                  ${m.isEdited ? '<span>(edited)</span>' : ''}
+                  <span>${m.timestamp ? new Date(m.timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''}</span>
+                </div>
+              </div>
+              ${reactionsHtml}
+            </div>
+          `;
+          list.appendChild(div);
+        });
+        list.scrollTop = list.scrollHeight;
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    function getDmId(uid1, uid2) {
+      return [uid1, uid2].sort().join('_');
+    }
+
+    function toggleViewOnceMode() {
+      isViewOnceNext = !isViewOnceNext;
+      document.getElementById('view-once-toggle').classList.toggle('active', isViewOnceNext);
+    }
+
+    async function handleFileSelected(input) {
+      const file = input.files[0];
+      if (!file) return;
+
+      showToast("Uploading media...", "info");
+      try {
+        const url = await uploadToCloudinary(file);
+        const type = file.type.startsWith('video') ? 'video' : 'image';
+        sendMessage(url, type);
+      } catch (e) {
+        showToast("File upload failed.", "error");
+      }
+      input.value = '';
+    }
+
+    async function sendMessage(mediaUrl = null, mediaType = null) {
+      const input = document.getElementById('msg-input');
+      const text = input.value.trim();
+      if ((!text && !mediaUrl) || !currentSpace) return;
+
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages`;
+
+      const msgData = {
+        senderUid: currentUser.uid,
+        senderName: currentUserProfile.displayName,
+        senderPhoto: currentUserProfile.photoURL || '',
+        text: text,
+        mediaUrl: mediaUrl,
+        mediaType: mediaType,
+        isViewOnce: isViewOnceNext && !!mediaUrl,
+        timestamp: firebase.database.ServerValue.TIMESTAMP
+      };
+
+      input.value = '';
+      if (isViewOnceNext) toggleViewOnceMode();
+
+      await db.ref(path).push(msgData);
+    }
+
+    /* --- CONTEXT MENU, EDIT, DELETE, REACTION & PINNING --- */
+    function openMsgContextMenu(e, msgId, senderUid, isPinned) {
+      e.preventDefault();
+      activeContextMsg = { msgId, senderUid, isPinned };
+      
+      const menu = document.getElementById('message-context-menu');
+      menu.style.top = `${Math.min(e.clientY, window.innerHeight - 200)}px`;
+      menu.style.left = `${Math.min(e.clientX, window.innerWidth - 180)}px`;
+
+      document.getElementById('ctx-edit').style.display = senderUid === currentUser.uid ? 'flex' : 'none';
+      document.getElementById('ctx-delete').style.display = senderUid === currentUser.uid ? 'flex' : 'none';
+      document.getElementById('ctx-pin').style.display = currentSpace.type === 'group' ? 'flex' : 'none';
+
+      menu.classList.add('active');
+    }
+
+    document.addEventListener('click', (e) => {
+      if (!e.target.closest('#message-context-menu') && !e.target.closest('.msg-content')) {
+        document.getElementById('message-context-menu').classList.remove('active');
+      }
+    });
+
+    async function addReactionToActiveMsg(emoji) {
+      if (!activeContextMsg) return;
+      const { msgId } = activeContextMsg;
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages/${msgId}/reactions/${currentUser.uid}` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages/${msgId}/reactions/${currentUser.uid}`;
+
+      const snap = await db.ref(path).once('value');
+      if (snap.val() === emoji) {
+        await db.ref(path).remove();
+      } else {
+        await db.ref(path).set(emoji);
+      }
+      document.getElementById('message-context-menu').classList.remove('active');
+    }
+
+    async function startEditActiveMessage() {
+      if (!activeContextMsg) return;
+      const newText = prompt("Edit your message:");
+      if (newText === null || !newText.trim()) return;
+
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages/${activeContextMsg.msgId}` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages/${activeContextMsg.msgId}`;
+
+      await db.ref(path).update({
+        text: newText.trim(),
+        isEdited: true,
+        editedAt: firebase.database.ServerValue.TIMESTAMP
+      });
+      document.getElementById('message-context-menu').classList.remove('active');
+    }
+
+    async function deleteActiveMessage() {
+      if (!activeContextMsg) return;
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages/${activeContextMsg.msgId}` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages/${activeContextMsg.msgId}`;
+
+      await db.ref(path).update({
+        isDeleted: true,
+        text: '',
+        mediaUrl: null
+      });
+      document.getElementById('message-context-menu').classList.remove('active');
+    }
+
+    async function pinActiveMessage() {
+      if (!activeContextMsg || currentSpace.type !== 'group') return;
+      const { msgId, isPinned } = activeContextMsg;
+
+      if (isPinned) {
+        await db.ref(`groups/${currentSpace.id}/pinnedMessages/${msgId}`).remove();
+        showToast("Message unpinned", "info");
+      } else {
+        await db.ref(`groups/${currentSpace.id}/pinnedMessages/${msgId}`).set({
+          pinnedBy: currentUser.uid,
+          pinnedAt: firebase.database.ServerValue.TIMESTAMP
+        });
+        showToast("Message pinned", "success");
+      }
+      document.getElementById('message-context-menu').classList.remove('active');
+    }
+
+    function loadPinnedMessageBar(groupId) {
+      const ref = db.ref(`groups/${groupId}/pinnedMessages`);
+      const fn = ref.on('value', async (snap) => {
+        const bar = document.getElementById('pinned-msg-bar');
+        if (!snap.exists()) {
+          bar.style.display = 'none';
+          return;
+        }
+
+        const keys = Object.keys(snap.val());
+        const lastPinnedKey = keys[keys.length - 1];
+        const msgSnap = await db.ref(`groups/${groupId}/messages/${lastPinnedKey}`).once('value');
+        if (msgSnap.exists()) {
+          document.getElementById('pinned-msg-preview').innerText = msgSnap.val().text || 'Media Message';
+          bar.style.display = 'flex';
+        }
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    async function viewPinnedMessagesModal() {
+      if (!currentSpace || currentSpace.type !== 'group') return;
+      const list = document.getElementById('pinned-messages-list');
+      list.innerHTML = '';
+
+      const snap = await db.ref(`groups/${currentSpace.id}/pinnedMessages`).once('value');
+      if (!snap.exists()) return;
+
+      for (const msgId in snap.val()) {
+        const mSnap = await db.ref(`groups/${currentSpace.id}/messages/${msgId}`).once('value');
+        if (mSnap.exists()) {
+          const m = mSnap.val();
+          const div = document.createElement('div');
+          div.style.cssText = 'padding:10px; border:1px solid var(--border); border-radius:8px; background:var(--bg-main);';
+          div.innerHTML = `<strong>${sanitize(m.senderName)}:</strong> ${sanitize(m.text)}`;
+          list.appendChild(div);
+        }
+      }
+      openModal('modal-pinned-messages');
+    }
+
+    /* --- VIEW ONCE & MEDIA VIEWER --- */
+    async function openViewOnceMedia(msgId, url, type) {
+      const path = currentSpace.type === 'group' 
+        ? `groups/${currentSpace.id}/messages/${msgId}/viewedBy/${currentUser.uid}` 
+        : `directMessages/${getDmId(currentUser.uid, currentSpace.targetUid)}/messages/${msgId}/viewedBy/${currentUser.uid}`;
+
+      // Mark consumed in database atomically
+      await db.ref(path).set(true);
+
+      openMediaViewer(url, type);
+    }
+
+    function openMediaViewer(url, type = 'image') {
+      const container = document.getElementById('media-viewer-container');
+      container.innerHTML = type === 'video' 
+        ? `<video src="${url}" controls autoplay class="media-viewer-content"></video>`
+        : `<img src="${url}" class="media-viewer-content">`;
+      
+      document.getElementById('media-viewer-overlay').classList.add('active');
+    }
+
+    function closeMediaViewer() {
+      document.getElementById('media-viewer-overlay').classList.remove('active');
+      document.getElementById('media-viewer-container').innerHTML = '';
+    }
+
+    /* --- GROUP STATUSES --- */
+    function loadGroupStatuses(groupId) {
+      const ref = db.ref(`groups/${groupId}/statuses`);
+      const fn = ref.on('value', (snap) => {
+        const container = document.getElementById('statuses-list-container');
+        container.innerHTML = '';
+        if (!snap.exists()) return;
+
+        const now = Date.now();
+        snap.forEach((child) => {
+          const st = child.val();
+          if (st.expiresAt && st.expiresAt < now) return; // Expired
+
+          const div = document.createElement('div');
+          div.className = 'status-avatar-wrapper';
+          const viewed = st.views && st.views[currentUser.uid];
+          div.onclick = () => viewStatus(st);
+
+          div.innerHTML = `
+            <img class="status-avatar ${viewed ? 'viewed' : ''}" src="${st.creatorPhoto || 'https://via.placeholder.com/48'}">
+            <span class="status-user-name">${sanitize(st.creatorName)}</span>
+          `;
+          container.appendChild(div);
+        });
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    function openAddStatusModal() {
+      openModal('modal-add-status');
+    }
+
+    async function handlePostStatus(e) {
+      e.preventDefault();
+      const text = document.getElementById('status-text-input').value.trim();
+      const file = document.getElementById('status-media-file').files[0];
+
+      let mediaUrl = null;
+      let mediaType = null;
+
+      if (file) {
+        mediaUrl = await uploadToCloudinary(file);
+        mediaType = file.type.startsWith('video') ? 'video' : 'image';
+      }
+
+      await db.ref(`groups/${currentSpace.id}/statuses`).push({
+        creatorUid: currentUser.uid,
+        creatorName: currentUserProfile.displayName,
+        creatorPhoto: currentUserProfile.photoURL || '',
+        text,
+        mediaUrl,
+        mediaType,
+        createdAt: firebase.database.ServerValue.TIMESTAMP,
+        expiresAt: Date.now() + (24 * 60 * 60 * 1000)
+      });
+
+      closeModal('modal-add-status');
+      showToast("Status posted!", "success");
+    }
+
+    function viewStatus(st) {
+      if (currentSpace && currentSpace.type === 'group') {
+        db.ref(`groups/${currentSpace.id}/statuses/${st.key}/views/${currentUser.uid}`).set(true);
+      }
+      openMediaViewer(st.mediaUrl || '', st.mediaType || 'image');
+    }
+
+    /* --- FRIENDS & DIRECT MESSAGES --- */
+    function loadFriendRequests() {
+      const ref = db.ref(`friendRequests/${currentUser.uid}`);
+      const fn = ref.on('value', (snap) => {
+        const badge = document.getElementById('badge-req-count');
+        const container = document.getElementById('requests-list-container');
+        container.innerHTML = '';
+
+        if (!snap.exists()) {
+          badge.style.display = 'none';
+          container.innerHTML = '<div class="empty-state">No pending requests</div>';
+          return;
+        }
+
+        const reqs = snap.val();
+        badge.innerText = Object.keys(reqs).length;
+        badge.style.display = 'inline-block';
+
+        snap.forEach((child) => {
+          const req = child.val();
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; margin-bottom:12px;';
+          div.innerHTML = `
+            <div>
+              <strong>${sanitize(req.fromName)}</strong> (${req.fromFluxId})
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-primary btn-sm" onclick="acceptFriend('${child.key}', '${req.fromUid}')">Accept</button>
+            </div>
+          `;
+          container.appendChild(div);
+        });
+      });
+      activeListeners.push({ ref, event: 'value', fn });
+    }
+
+    async function handleAddFriend(e) {
+      e.preventDefault();
+      const targetFluxId = document.getElementById('target-flux-id').value.trim().toUpperCase();
+
+      const snap = await db.ref(`fluxIds/${targetFluxId}`).once('value');
+      if (!snap.exists()) {
+        showToast("User not found.", "error");
+        return;
+      }
+
+      const targetUid = snap.val();
+      if (targetUid === currentUser.uid) {
+        showToast("You cannot add yourself.", "warning");
+        return;
+      }
+
+      await db.ref(`friendRequests/${targetUid}`).push({
+        fromUid: currentUser.uid,
+        fromName: currentUserProfile.displayName,
+        fromFluxId: currentUserProfile.fluxId
+      });
+
+      closeModal('modal-add-friend');
+      showToast("Friend request sent.", "success");
+    }
+
+    async function acceptFriend(reqId, targetUid) {
+      await db.ref(`friends/${currentUser.uid}/${targetUid}`).set(true);
+      await db.ref(`friends/${targetUid}/${currentUser.uid}`).set(true);
+      await db.ref(`friendRequests/${currentUser.uid}/${reqId}`).remove();
+      showToast("Friend accepted!", "success");
+    }
+
+    // Friend list rendering inside Modal
+    document.getElementById('modal-friends').addEventListener('click', loadFriendsList);
+    async function loadFriendsList() {
+      const container = document.getElementById('friends-list-container');
+      container.innerHTML = '';
+
+      const snap = await db.ref(`friends/${currentUser.uid}`).once('value');
+      if (!snap.exists()) {
+        container.innerHTML = '<div class="empty-state">No friends added yet</div>';
+        return;
+      }
+
+      for (const friendUid in snap.val()) {
+        const uSnap = await db.ref(`users/${friendUid}`).once('value');
+        if (uSnap.exists()) {
+          const f = uSnap.val();
+          const div = document.createElement('div');
+          div.style.cssText = 'display:flex; justify-content:space-between; align-items:center; padding:8px 0; border-bottom:1px solid var(--border);';
+          div.innerHTML = `
+            <div>
+              <strong>${sanitize(f.displayName)}</strong> (${f.fluxId})
+            </div>
+            <div style="display:flex; gap:6px;">
+              <button class="btn btn-primary btn-sm" onclick="openDirectMessage('${friendUid}', '${sanitize(f.displayName)}')"><i class="fa-solid fa-message"></i> Chat</button>
+              <button class="btn btn-outline btn-sm" onclick="startOneOnOneCall('${friendUid}', '${sanitize(f.displayName)}', 'video')"><i class="fa-solid fa-video"></i></button>
+            </div>
+          `;
+          container.appendChild(div);
+        }
+      }
+    }
+
+    function openDirectMessage(targetUid, targetName) {
+      closeModal('modal-friends');
+      selectSpace({ type: 'dm', id: getDmId(currentUser.uid, targetUid), name: targetName, typeName: 'Direct Message', targetUid });
+    }
+
+    /* --- WEBRTC 1-ON-1 AND GROUP CALLING --- */
+    function listenForIncomingCalls() {
+      const ref = db.ref(`calls`).orderByChild('recipientUid').equalTo(currentUser.uid);
+      const fn = ref.on('child_added', (snap) => {
+        const call = snap.val();
+        if (call.status === 'calling') {
+          activeCallId = snap.key;
+          activeCallPeerUid = call.callerUid;
+          document.getElementById('incoming-caller-name').innerText = call.callerName;
+          document.getElementById('incoming-call-type').innerText = `Incoming ${call.type.toUpperCase()} call...`;
+          document.getElementById('incoming-call-modal').classList.add('active');
+        }
+      });
+      activeListeners.push({ ref, event: 'child_added', fn });
+    }
+
+    async function startOneOnOneCall(targetUid, targetName, callType = 'video') {
+      closeModal('modal-friends');
+      const callRef = db.ref('calls').push();
+      activeCallId = callRef.key;
+      activeCallRole = 'caller';
+      activeCallPeerUid = targetUid;
+
+      await callRef.set({
+        callerUid: currentUser.uid,
+        callerName: currentUserProfile.displayName,
+        recipientUid: targetUid,
+        type: callType,
+        status: 'calling',
+        createdAt: firebase.database.ServerValue.TIMESTAMP
+      });
+
+      startCall(callType);
+
+      // Listen for acceptance
+      db.ref(`calls/${activeCallId}/status`).on('value', (snap) => {
+        if (snap.val() === 'rejected') {
+          showToast("Call rejected", "warning");
+          leaveCall();
+        }
+      });
+    }
+
+    async function acceptIncomingCall() {
+      document.getElementById('incoming-call-modal').classList.remove('active');
+      activeCallRole = 'recipient';
+      await db.ref(`calls/${activeCallId}/status`).set('accepted');
+      startCall('video');
+    }
+
+    async function rejectIncomingCall() {
+      document.getElementById('incoming-call-modal').classList.remove('active');
+      if (activeCallId) await db.ref(`calls/${activeCallId}/status`).set('rejected');
+    }
+
+    async function startCall(type = 'video') {
+      document.getElementById('call-overlay').classList.add('active');
+      try {
+        activeCallStream = await navigator.mediaDevices.getUserMedia({ video: type === 'video', audio: true });
+        const grid = document.getElementById('video-grid');
+        grid.innerHTML = '';
+        const tile = document.createElement('div');
+        tile.className = 'video-tile';
+        tile.innerHTML = `<video autoplay muted playsinline id="local-video"></video><div class="video-name">You</div>`;
+        grid.appendChild(tile);
+        document.getElementById('local-video').srcObject = activeCallStream;
+      } catch (err) {
+        showToast("Camera/Microphone permission denied.", "error");
+        leaveCall();
+      }
+    }
+
+    function toggleMute() {
+      if (!activeCallStream) return;
+      const audioTrack = activeCallStream.getAudioTracks()[0];
+      if (audioTrack) {
+        audioTrack.enabled = !audioTrack.enabled;
+        document.getElementById('btn-toggle-mic').classList.toggle('btn-danger', !audioTrack.enabled);
+      }
+    }
+
+    function toggleCamera() {
+      if (!activeCallStream) return;
+      const videoTrack = activeCallStream.getVideoTracks()[0];
+      if (videoTrack) {
+        videoTrack.enabled = !videoTrack.enabled;
+        document.getElementById('btn-toggle-cam').classList.toggle('btn-danger', !videoTrack.enabled);
+      }
+    }
+
+    function leaveCall() {
+      if (activeCallStream) {
+        activeCallStream.getTracks().forEach(t => t.stop());
+        activeCallStream = null;
+      }
+      if (activeCallId) {
+        db.ref(`calls/${activeCallId}/status`).set('ended');
+        activeCallId = null;
+      }
+      document.getElementById('video-grid').innerHTML = '';
+      document.getElementById('call-overlay').classList.remove('active');
+    }
+
+    /* --- REDEEM CODE --- */
+    async function handleRedeemCode(e) {
+      e.preventDefault();
+      const code = document.getElementById('redeem-code-input').value.trim().toUpperCase();
+
+      const ref = db.ref(`redeemCodes/${code}`);
+      const res = await ref.transaction((current) => {
+        if (current !== null && !current.used) {
+          current.used = true;
+          current.usedBy = currentUser.uid;
+          return current;
+        }
+        return;
+      });
+
+      if (res.committed) {
+        showToast("Code redeemed! Premium active.", "success");
+        closeModal('modal-redeem');
+      } else {
+        showToast("Invalid or already redeemed code.", "error");
+      }
+    }
+
+    /* --- PROFILE UPDATE --- */
+    async function handleUpdateProfile(e) {
+      e.preventDefault();
+      const name = document.getElementById('edit-name').value.trim();
+      const bio = document.getElementById('edit-bio').value.trim();
+
+      await db.ref(`users/${currentUser.uid}`).update({ displayName: name, bio });
+      currentUserProfile.displayName = name;
+      currentUserProfile.bio = bio;
+      document.getElementById('my-profile-name').innerText = name;
+      closeModal('modal-my-profile');
+      showToast("Profile updated!", "success");
+    }
+
+    // Network Online/Offline Handler
+    window.addEventListener('offline', () => document.getElementById('offline-banner').style.display = 'block');
+    window.addEventListener('online', () => document.getElementById('offline-banner').style.display = 'none');
+  </script>
+</body>
+</html>
